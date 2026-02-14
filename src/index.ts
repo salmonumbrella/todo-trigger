@@ -277,6 +277,7 @@ export default runExtension(async ({ extensionAPI }) => {
     { state: TodoState; timestamp: number }
   >();
   const HANDLED_TRANSITION_WINDOW_MS = 300;
+  const ROAM_STATE_SETTLE_MS = 50;
   const hasHandledRecently = (blockUid: string, state: TodoState) => {
     const now = Date.now();
     const previous = latestHandledTransition.get(blockUid);
@@ -327,7 +328,7 @@ export default runExtension(async ({ extensionAPI }) => {
             } else {
               triggerOnTodo(blockUid, value);
             }
-          }, 50);
+          }, ROAM_STATE_SETTLE_MS);
         });
       }
     },
@@ -349,7 +350,7 @@ export default runExtension(async ({ extensionAPI }) => {
         if (value.startsWith("{{[[TODO]]}}")) {
           triggerOnTodo(blockUid, value);
         }
-      }, 50);
+      }, ROAM_STATE_SETTLE_MS);
     }
   };
   document.addEventListener("click", clickListener);
@@ -369,7 +370,7 @@ export default runExtension(async ({ extensionAPI }) => {
             } else if (value.startsWith("{{[[TODO]]}}")) {
               triggerOnTodo(blockUid, value);
             }
-          }, 50);
+          }, ROAM_STATE_SETTLE_MS);
           return;
         }
         const blockUids = Array.from(
@@ -388,7 +389,7 @@ export default runExtension(async ({ extensionAPI }) => {
               triggerOnTodo(blockUid, value);
             }
           });
-        }, 50);
+        }, ROAM_STATE_SETTLE_MS);
       } else {
         const target = e.target as HTMLElement;
         if (target.tagName === "TEXTAREA") {
@@ -401,7 +402,7 @@ export default runExtension(async ({ extensionAPI }) => {
               if (value.startsWith("{{[[TODO]]}}")) {
                 triggerOnTodo(blockUid, value);
               }
-            }, 50);
+            }, ROAM_STATE_SETTLE_MS);
           }
         }
       }
