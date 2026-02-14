@@ -485,5 +485,13 @@ export default runExtension(async ({ extensionAPI }) => {
       { type: "click", el: document, listener: clickListener },
     ],
     commands: ["Defer TODO"],
+    unload: () => {
+      document
+        .querySelectorAll<HTMLInputElement>("[data-todo-trigger-bound]")
+        .forEach((el) => {
+          delete el.dataset.todoTriggerBound;
+        });
+      latestHandledTransition.clear();
+    },
   };
 });
