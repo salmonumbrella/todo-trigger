@@ -280,6 +280,13 @@ export default runExtension(async ({ extensionAPI }) => {
   const ROAM_STATE_SETTLE_MS = 50;
   const hasHandledRecently = (blockUid: string, state: TodoState) => {
     const now = Date.now();
+    if (latestHandledTransition.size > 100) {
+      for (const [uid, entry] of latestHandledTransition) {
+        if (now - entry.timestamp > HANDLED_TRANSITION_WINDOW_MS) {
+          latestHandledTransition.delete(uid);
+        }
+      }
+    }
     const previous = latestHandledTransition.get(blockUid);
     latestHandledTransition.set(blockUid, { state, timestamp: now });
     return (
