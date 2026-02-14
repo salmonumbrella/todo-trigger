@@ -184,8 +184,7 @@ const initializeTodont = () => {
           } else if (firstButtonTag === "ARCHIVED") {
             replaceText({
               before: "{{[[ARCHIVED]]}}",
-              after: "",
-              prepend: true,
+              after: "{{[[TODO]]}}",
             });
           } else {
             replaceText({

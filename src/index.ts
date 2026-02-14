@@ -271,27 +271,61 @@ export default runExtension(async ({ extensionAPI }) => {
     return { explode: !!extensionAPI.settings.get("explode") };
   };
 
+  type TodoState = "TODO" | "DONE";
+  const latestHandledTransition = new Map<
+    string,
+    { state: TodoState; timestamp: number }
+  >();
+  const HANDLED_TRANSITION_WINDOW_MS = 300;
+  const hasHandledRecently = (blockUid: string, state: TodoState) => {
+    const now = Date.now();
+    const previous = latestHandledTransition.get(blockUid);
+    latestHandledTransition.set(blockUid, { state, timestamp: now });
+    return (
+      !!previous &&
+      previous.state === state &&
+      now - previous.timestamp < HANDLED_TRANSITION_WINDOW_MS
+    );
+  };
+
+  const triggerOnTodo = (blockUid: string, value: string) => {
+    if (!hasHandledRecently(blockUid, "TODO")) {
+      onTodo(blockUid, value);
+    }
+  };
+
+  const triggerOnDone = (blockUid: string, value: string) => {
+    if (hasHandledRecently(blockUid, "DONE")) {
+      return { explode: false };
+    }
+    return onDone(blockUid, value);
+  };
+
   createHTMLObserver({
     tag: "LABEL",
     className: "check-container",
     callback: (_l) => {
       const l = _l as HTMLLabelElement;
       const inputTarget = l.querySelector("input");
-      if (inputTarget?.type === "checkbox") {
+      if (
+        inputTarget?.type === "checkbox" &&
+        inputTarget.dataset.todoTriggerBound !== "true"
+      ) {
+        inputTarget.dataset.todoTriggerBound = "true";
         const blockUid = getBlockUidFromTarget(inputTarget);
         inputTarget.addEventListener("click", () => {
           const position = inputTarget.getBoundingClientRect();
           setTimeout(() => {
-            const oldValue = getTextByBlockUid(blockUid);
+            const value = getTextByBlockUid(blockUid);
             if (inputTarget.checked) {
-              onTodo(blockUid, oldValue);
-            } else {
-              const config = onDone(blockUid, oldValue);
+              const config = triggerOnDone(blockUid, value);
               if (config.explode) {
                 setTimeout(() => {
                   explode(position.x, position.y);
                 }, 50);
               }
+            } else {
+              triggerOnTodo(blockUid, value);
             }
           }, 50);
         });
@@ -301,18 +335,21 @@ export default runExtension(async ({ extensionAPI }) => {
 
   const clickListener = async (e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (
-      target.parentElement?.getElementsByClassName(
-        "bp3-text-overflow-ellipsis"
-      )[0]?.innerHTML === "TODO"
-    ) {
-      const textarea = target
-        .closest(".roam-block-container")
-        ?.getElementsByTagName?.("textarea")?.[0];
-      if (textarea) {
-        const { blockUid } = getUids(textarea);
-        onTodo(blockUid, textarea.value);
-      }
+    const menuItem = target.closest(".bp3-menu-item") as HTMLElement;
+    const menuLabel = menuItem
+      ?.querySelector(".bp3-text-overflow-ellipsis")
+      ?.textContent?.trim();
+    if (menuLabel === "TODO") {
+      setTimeout(() => {
+        const blockUid = window.roamAlphaAPI.ui.getFocusedBlock()?.["block-uid"];
+        if (!blockUid) {
+          return;
+        }
+        const value = getTextByBlockUid(blockUid);
+        if (value.startsWith("{{[[TODO]]}}")) {
+          triggerOnTodo(blockUid, value);
+        }
+      }, 50);
     }
   };
   document.addEventListener("click", clickListener);
@@ -325,46 +362,46 @@ export default runExtension(async ({ extensionAPI }) => {
         if (target.tagName === "TEXTAREA") {
           const textArea = target as HTMLTextAreaElement;
           const { blockUid } = getUids(textArea);
-          if (textArea.value.startsWith("{{[[DONE]]}}")) {
-            onDone(blockUid, textArea.value);
-          } else if (textArea.value.startsWith("{{[[TODO]]}}")) {
-            onTodo(blockUid, textArea.value);
-          }
+          setTimeout(() => {
+            const value = getTextByBlockUid(blockUid);
+            if (value.startsWith("{{[[DONE]]}}")) {
+              triggerOnDone(blockUid, value);
+            } else if (value.startsWith("{{[[TODO]]}}")) {
+              triggerOnTodo(blockUid, value);
+            }
+          }, 50);
           return;
         }
-        Array.from(document.getElementsByClassName("block-highlight-blue"))
+        const blockUids = Array.from(
+          document.getElementsByClassName("block-highlight-blue")
+        )
           .map(
             (d) => d.getElementsByClassName("roam-block")[0] as HTMLDivElement
           )
-          .map((d) => getUids(d).blockUid)
-          .map((blockUid) => ({
-            blockUid,
-            text: getTextByBlockUid(blockUid),
-          }))
-          .forEach(({ blockUid, text }) => {
-            if (text.startsWith("{{[[DONE]]}}")) {
-              onTodo(blockUid, text);
-            } else if (text.startsWith("{{[[TODO]]}}")) {
-              onDone(blockUid, text);
+          .map((d) => getUids(d).blockUid);
+        setTimeout(() => {
+          blockUids.forEach((blockUid) => {
+            const value = getTextByBlockUid(blockUid);
+            if (value.startsWith("{{[[DONE]]}}")) {
+              triggerOnDone(blockUid, value);
+            } else if (value.startsWith("{{[[TODO]]}}")) {
+              triggerOnTodo(blockUid, value);
             }
           });
+        }, 50);
       } else {
         const target = e.target as HTMLElement;
         if (target.tagName === "TEXTAREA") {
-          const todoItem = Array.from(
-            target.parentElement?.querySelectorAll<HTMLDivElement>(
-              ".bp3-text-overflow-ellipsis"
-            ) || []
-          ).find((t) => t.innerText === "TODO");
-          if (
-            todoItem &&
-            todoItem.parentElement &&
-            getComputedStyle(todoItem.parentElement).backgroundColor ===
-              "rgb(213, 218, 223)"
-          ) {
-            const textArea = target as HTMLTextAreaElement;
-            const { blockUid } = getUids(textArea);
-            onTodo(blockUid, textArea.value);
+          const textArea = target as HTMLTextAreaElement;
+          const beforeValue = textArea.value;
+          const { blockUid } = getUids(textArea);
+          if (!beforeValue.startsWith("{{[[TODO]]}}")) {
+            setTimeout(() => {
+              const value = getTextByBlockUid(blockUid);
+              if (value.startsWith("{{[[TODO]]}}")) {
+                triggerOnTodo(blockUid, value);
+              }
+            }, 50);
           }
         }
       }
