@@ -341,7 +341,7 @@ export default runExtension(async ({ extensionAPI }) => {
     },
   });
 
-  const clickListener = async (e: MouseEvent) => {
+  const clickListener = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
     const menuItem = target.closest(".bp3-menu-item") as HTMLElement;
     const menuLabel = menuItem
@@ -362,7 +362,7 @@ export default runExtension(async ({ extensionAPI }) => {
   };
   document.addEventListener("click", clickListener);
 
-  const keydownEventListener = async (_e: Event) => {
+  const keydownEventListener = (_e: Event) => {
     const e = _e as KeyboardEvent;
     if (e.key === "Enter") {
       if (isControl(e)) {
@@ -482,8 +482,8 @@ export default runExtension(async ({ extensionAPI }) => {
 
   return {
     domListeners: [
-      { type: "keydown", el: document, listener: keydownEventListener },
-      { type: "click", el: document, listener: clickListener },
+      { type: "keydown" as const, el: document, listener: keydownEventListener },
+      { type: "click" as const, el: document, listener: clickListener as EventListener },
     ],
     commands: ["Defer TODO"],
     unload: () => {
