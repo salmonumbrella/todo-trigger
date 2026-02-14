@@ -390,6 +390,7 @@ export default runExtension(async ({ extensionAPI }) => {
         setTimeout(() => {
           blockUids.forEach((blockUid) => {
             const value = getTextByBlockUid(blockUid);
+            if (!value) return;
             if (value.startsWith("{{[[DONE]]}}")) {
               triggerOnDone(blockUid, value);
             } else if (value.startsWith("{{[[TODO]]}}")) {
