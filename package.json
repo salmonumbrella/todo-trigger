@@ -2,21 +2,21 @@
   "name": "todo-trigger",
   "version": "1.1.1",
   "description": "Tie special actions to converting between TODOs and DONEs!",
+  "license": "MIT",
   "main": "./build/main.js",
   "scripts": {
     "prebuild:roam": "npm install",
     "build:roam": "samepage build",
     "start": "samepage dev"
   },
-  "license": "MIT",
-  "tags": [
-    "automations",
-    "todos"
-  ],
   "dependencies": {
     "roamjs-components": "^0.82.0"
   },
   "samepage": {
     "extends": "node_modules/roamjs-components/package.json"
-  }
+  },
+  "tags": [
+    "automations",
+    "todos"
+  ]
 }

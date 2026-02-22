@@ -18,22 +18,20 @@ import getChildrenLengthByParentUid from "roamjs-components/queries/getChildrenL
 import initializeTodont, { TODONT_MODES } from "./utils/todont";
 
 export default runExtension(async ({ extensionAPI }) => {
-  const toggleTodont = initializeTodont();
+  const toggleTodont = initializeTodont(extensionAPI);
   extensionAPI.settings.panel.create({
     tabTitle: "TODO Trigger",
     settings: [
       {
         id: "append-text",
         name: "Append Text",
-        description:
-          "The text to add to the end of a block, when an item flips from TODO to DONE",
+        description: "The text to add to the end of a block, when an item flips from TODO to DONE",
         action: { type: "input", placeholder: "Finished at {now}" },
       },
       {
         id: "on-todo",
         name: "On Todo",
-        description:
-          "The text to add to the end of a block, when a block first becomes a TODO",
+        description: "The text to add to the end of a block, when a block first becomes a TODO",
         action: { type: "input", placeholder: "#toRead" },
       },
       {
@@ -44,6 +42,30 @@ export default runExtension(async ({ extensionAPI }) => {
         action: { type: "input", placeholder: "#toRead, #Read" },
       },
       {
+        id: "todont-mode",
+        name: "TODONT Mode",
+        description: "Whether to incorporate styling when TODOS turn into ARCHIVED buttons.",
+        action: {
+          type: "select",
+          items: TODONT_MODES.slice(0),
+          onChange: (e) => toggleTodont(e.target.value as (typeof TODONT_MODES)[number]),
+        },
+      },
+      {
+        id: "todont-hotkey",
+        name: "TODONT Hotkey",
+        description: "Default hotkey for the 'Archive TODO' command (example: ctrl+shift+enter).",
+        action: {
+          type: "input",
+          placeholder: "ctrl+shift+enter",
+          onChange: () =>
+            toggleTodont(
+              ((extensionAPI.settings.get("todont-mode") as (typeof TODONT_MODES)[number]) ||
+                "off") as (typeof TODONT_MODES)[number],
+            ),
+        },
+      },
+      {
         id: "strikethrough",
         name: "Strikethrough",
         description: "Enable to strikethrough blocks with `{{[[DONE]]}}`",
@@ -52,15 +74,13 @@ export default runExtension(async ({ extensionAPI }) => {
       {
         id: "classname",
         name: "Classname",
-        description:
-          "Enable to add a `roamjs-done` classname to blocks with `{{[[DONE]]}}`",
+        description: "Enable to add a `roamjs-done` classname to blocks with `{{[[DONE]]}}`",
         action: { type: "switch" },
       },
       {
         id: "trim",
         name: "Trim Whitespace",
-        description:
-          "Trim the whitespace at the front and end when blocks become TODO or DONE",
+        description: "Trim the whitespace at the front and end when blocks become TODO or DONE",
         action: { type: "switch" },
       },
       {
@@ -72,34 +92,16 @@ export default runExtension(async ({ extensionAPI }) => {
       {
         id: "send-to-block",
         name: "Send To Block",
-        description:
-          "Specify a block reference or page name to send completed TODOs",
+        description: "Specify a block reference or page name to send completed TODOs",
         action: {
           type: "input",
           placeholder: "Block reference or page name",
         },
       },
-      {
-        id: "todont-mode",
-        name: "TODONT Mode",
-        description:
-          "Whether to incorporate styling when TODOS turn into ARCHIVED buttons.",
-        action: {
-          type: "select",
-          items: TODONT_MODES.slice(0),
-          onChange: (e) =>
-            toggleTodont(e.target.value as (typeof TODONT_MODES)[number]),
-        },
-      },
     ],
   });
 
-  const CLASSNAMES_TO_CHECK = [
-    "rm-block-ref",
-    "kanban-title",
-    "kanban-card",
-    "roam-block",
-  ];
+  const CLASSNAMES_TO_CHECK = ["rm-block-ref", "kanban-title", "kanban-card", "roam-block"];
 
   const onTodo = (blockUid: string, oldValue: string) => {
     const text = extensionAPI.settings.get("append-text") as string;
@@ -115,10 +117,7 @@ export default runExtension(async ({ extensionAPI }) => {
         .replace(new RegExp("\\*", "g"), "\\|")
         .replace("/Current Time", "[0-2][0-9]:[0-5][0-9]")
         .replace("/Today", `\\[\\[${DAILY_NOTE_PAGE_REGEX.source}\\]\\]`)
-        .replace(
-          /{now(?::([^}]+))?}/,
-          `\\[\\[${DAILY_NOTE_PAGE_REGEX.source}\\]\\]`
-        )}`;
+        .replace(/{now(?::([^}]+))?}/, `\\[\\[${DAILY_NOTE_PAGE_REGEX.source}\\]\\]`)}`;
       value = value.replace(new RegExp(formattedText), "");
     }
     const replaceTags = extensionAPI.settings.get("replace-tags") as string;
@@ -127,23 +126,14 @@ export default runExtension(async ({ extensionAPI }) => {
       const formattedPairs = pairs.map((p) =>
         p
           .split(",")
-          .map((pp) =>
-            pp
-              .trim()
-              .replace(/^#/, "")
-              .replace(/^\[\[/, "")
-              .replace(/\]\]$/, "")
-          )
-          .reverse()
+          .map((pp) => pp.trim().replace(/^#/, "").replace(/^\[\[/, "").replace(/\]\]$/, ""))
+          .reverse(),
       );
       if (formattedPairs.filter((p) => p.length === 1).length < 2) {
         formattedPairs.forEach(([before, after]) => {
           if (after) {
             value = value
-              .replace(
-                `#${before}`,
-                `#${/\s/.test(after) ? `[[${after}]]` : after}`
-              )
+              .replace(`#${before}`, `#${/\s/.test(after) ? `[[${after}]]` : after}`)
               .replace(new RegExp(`\\[\\[${before}\\]\\]`), `[[${after}]]`);
           } else {
             value = `${value}#[[${before}]]`;
@@ -157,24 +147,16 @@ export default runExtension(async ({ extensionAPI }) => {
       const today = new Date();
       const formattedText = ` ${onTodo
         .replace("/Current Time", format(today, "HH:mm"))
-        .replace(
-          "/Today",
-          `[[${window.roamAlphaAPI.util.dateToPageTitle(today)}]]`
-        )
+        .replace("/Today", `[[${window.roamAlphaAPI.util.dateToPageTitle(today)}]]`)
         .replace(/{now(?::([^}]+))?}/, (_: string, group: string) => {
           const date = window.roamAlphaAPI.util.dateToPageTitle(today);
-          if (
-            /skip dnp/i.test(group) &&
-            date === getPageTitleByBlockUid(blockUid)
-          ) {
+          if (/skip dnp/i.test(group) && date === getPageTitleByBlockUid(blockUid)) {
             return "";
           } else {
             return `[[${date}]]`;
           }
         })}`;
-      value = value.includes(formattedText)
-        ? value
-        : `${value}${formattedText}`;
+      value = value.includes(formattedText) ? value : `${value}${formattedText}`;
     }
     const trim = extensionAPI.settings.get("trim") as boolean;
     if (trim) {
@@ -195,16 +177,10 @@ export default runExtension(async ({ extensionAPI }) => {
       const today = new Date();
       const formattedText = ` ${text
         .replace("/Current Time", format(today, "HH:mm"))
-        .replace(
-          "/Today",
-          `[[${window.roamAlphaAPI.util.dateToPageTitle(today)}]]`
-        )
+        .replace("/Today", `[[${window.roamAlphaAPI.util.dateToPageTitle(today)}]]`)
         .replace(/{now(?::([^}]+))?}/, (_: string, group: string) => {
           const date = window.roamAlphaAPI.util.dateToPageTitle(today);
-          if (
-            /skip dnp/i.test(group) &&
-            date === getPageTitleByBlockUid(blockUid)
-          ) {
+          if (/skip dnp/i.test(group) && date === getPageTitleByBlockUid(blockUid)) {
             return "";
           } else {
             return `[[${date}]]`;
@@ -218,28 +194,19 @@ export default runExtension(async ({ extensionAPI }) => {
       const formattedPairs = pairs.map((p) =>
         p
           .split(",")
-          .map((pp) =>
-            pp
-              .trim()
-              .replace(/^#/, "")
-              .replace(/^\[\[/, "")
-              .replace(/\]\]$/, "")
-          )
+          .map((pp) => pp.trim().replace(/^#/, "").replace(/^\[\[/, "").replace(/\]\]$/, ""))
           .map((pp) =>
             pp === "{date}"
               ? DAILY_NOTE_PAGE_REGEX.source
               : pp === "{today}"
-              ? window.roamAlphaAPI.util.dateToPageTitle(new Date())
-              : pp
-          )
+                ? window.roamAlphaAPI.util.dateToPageTitle(new Date())
+                : pp,
+          ),
       );
       formattedPairs.forEach(([before, after]) => {
         if (after) {
           value = value
-            .replace(
-              `#${before}`,
-              `#${/\s/.test(after) ? `[[${after}]]` : after}`
-            )
+            .replace(`#${before}`, `#${/\s/.test(after) ? `[[${after}]]` : after}`)
             .replace(new RegExp(`\\[\\[${before}\\]\\]`), `[[${after}]]`);
         } else {
           value = value.replace(createTagRegex(before), "");
@@ -257,9 +224,7 @@ export default runExtension(async ({ extensionAPI }) => {
     }
     const sendToBlock = extensionAPI.settings.get("send-to-block") as string;
     if (sendToBlock) {
-      const uid = extractRef(
-        getPageUidByPageTitle(extractTag(sendToBlock)) || sendToBlock
-      );
+      const uid = extractRef(getPageUidByPageTitle(extractTag(sendToBlock)) || sendToBlock);
       if (uid) {
         const bottom = getChildrenLengthByParentUid(uid);
         window.roamAlphaAPI.moveBlock({
@@ -302,9 +267,8 @@ export default runExtension(async ({ extensionAPI }) => {
   const clickListener = async (e: MouseEvent) => {
     const target = e.target as HTMLElement;
     if (
-      target.parentElement?.getElementsByClassName(
-        "bp3-text-overflow-ellipsis"
-      )[0]?.innerHTML === "TODO"
+      target.parentElement?.getElementsByClassName("bp3-text-overflow-ellipsis")[0]?.innerHTML ===
+      "TODO"
     ) {
       const textarea = target
         .closest(".roam-block-container")
@@ -333,9 +297,7 @@ export default runExtension(async ({ extensionAPI }) => {
           return;
         }
         Array.from(document.getElementsByClassName("block-highlight-blue"))
-          .map(
-            (d) => d.getElementsByClassName("roam-block")[0] as HTMLDivElement
-          )
+          .map((d) => d.getElementsByClassName("roam-block")[0] as HTMLDivElement)
           .map((d) => getUids(d).blockUid)
           .map((blockUid) => ({
             blockUid,
@@ -352,15 +314,13 @@ export default runExtension(async ({ extensionAPI }) => {
         const target = e.target as HTMLElement;
         if (target.tagName === "TEXTAREA") {
           const todoItem = Array.from(
-            target.parentElement?.querySelectorAll<HTMLDivElement>(
-              ".bp3-text-overflow-ellipsis"
-            ) || []
+            target.parentElement?.querySelectorAll<HTMLDivElement>(".bp3-text-overflow-ellipsis") ||
+              [],
           ).find((t) => t.innerText === "TODO");
           if (
             todoItem &&
             todoItem.parentElement &&
-            getComputedStyle(todoItem.parentElement).backgroundColor ===
-              "rgb(213, 218, 223)"
+            getComputedStyle(todoItem.parentElement).backgroundColor === "rgb(213, 218, 223)"
           ) {
             const textArea = target as HTMLTextAreaElement;
             const { blockUid } = getUids(textArea);
@@ -395,28 +355,24 @@ export default runExtension(async ({ extensionAPI }) => {
         if (input.checked && !input.disabled) {
           const zoom = l.closest(".rm-zoom-item-content") as HTMLSpanElement;
           if (zoom) {
-            styleBlock(
-              zoom.firstElementChild?.firstElementChild as HTMLDivElement
-            );
+            styleBlock(zoom.firstElementChild?.firstElementChild as HTMLDivElement);
             return;
           }
-          const block = CLASSNAMES_TO_CHECK.map(
-            (c) => l.closest(`.${c}`) as HTMLElement
-          ).find((d) => !!d);
+          const block = CLASSNAMES_TO_CHECK.map((c) => l.closest(`.${c}`) as HTMLElement).find(
+            (d) => !!d,
+          );
           if (block) {
             styleBlock(block);
           }
         } else {
           const zoom = l.closest(".rm-zoom-item-content") as HTMLSpanElement;
           if (zoom) {
-            unstyleBlock(
-              zoom.firstElementChild?.firstElementChild as HTMLDivElement
-            );
+            unstyleBlock(zoom.firstElementChild?.firstElementChild as HTMLDivElement);
             return;
           }
-          const block = CLASSNAMES_TO_CHECK.map(
-            (c) => l.closest(`.${c}`) as HTMLElement
-          ).find((d) => !!d);
+          const block = CLASSNAMES_TO_CHECK.map((c) => l.closest(`.${c}`) as HTMLElement).find(
+            (d) => !!d,
+          );
           if (block) {
             unstyleBlock(block);
           }
@@ -429,15 +385,11 @@ export default runExtension(async ({ extensionAPI }) => {
 
   addDeferTODOsCommand();
   toggleTodont(
-    (extensionAPI.settings.get(
-      "todont-mode"
-    ) as (typeof TODONT_MODES)[number]) || "off"
+    (extensionAPI.settings.get("todont-mode") as (typeof TODONT_MODES)[number]) || "off",
   );
 
   return {
-    domListeners: [
-      { type: "keydown", el: document, listener: keydownEventListener },
-    ],
+    domListeners: [{ type: "keydown", el: document, listener: keydownEventListener }],
     commands: ["Defer TODO"],
   };
 });

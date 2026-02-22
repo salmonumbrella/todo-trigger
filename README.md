@@ -34,6 +34,8 @@ This extension supports the following configuration options, to be specified in 
 
 - `Send To Block` - (Optiona) Set to a page name or a block reference to send the completed TODO to be a child of that node.
 
+- `TODONT Hotkey` - (Optional) The default hotkey string for `Archive TODO` (for example `ctrl+shift+enter`).
+
 Anytime a TODO checkbox becomes DONE, either by user click or keyboard shortbut, the "Done" action fires. Similarly, when a DONE checkbox becomes TODO, the "Todo" action fires. This extension also works on multiple blocks at once.
 
 When "Append Text" is configured, the "Done" action appends the configured text to the end of the block. The "Todo" action removes the configured text from the end of the block.
@@ -46,9 +48,9 @@ When None are configured, nothing happens.
 
 ## TODONT Mode
 
-TODONT Mode allows users to archive todos, by replacing the `{{[[TODO]]}}` with a `{{[[ARCHIVED]]}}`. To enable, switch on `icon` in the `TODONT MODE` field in your Roam Depot Settings.
+TODONT Mode allows users to archive todos, by replacing the `{{[[TODO]]}}` with a `{{[[ARCHIVED]]}}`. To enable styling, switch on `icon` in the `TODONT MODE` field in your Roam Depot Settings.
 
-To archive a `TODO`, just hit CMD+SHIFT+ENTER (CTRL in windows). In the text area it inserts `{{[[ARCHIVED]]}}` at the beginning of the block. Any TODOs or DONEs will be replaced with an ARCHIVED. If an ARCHIVED exists, it will be cleared. If none of the above exists, an ARCHIVED is inserted in the block.
+The `Archive TODO` command is always available in the command palette and Hotkeys settings. Its default hotkey comes from the `TODONT Hotkey` extension setting (default: `ctrl+shift+enter`). In the text area it inserts `{{[[ARCHIVED]]}}` at the beginning of the block. Any TODOs or DONEs will be replaced with an ARCHIVED. If an ARCHIVED exists, it will be cleared. If none of the above exists, an ARCHIVED is inserted in the block.
 
 To change the CSS styling of the archive display, you'll want to change the CSS associated with the `roamjs-todont` class.
 

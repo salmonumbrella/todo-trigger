@@ -24,7 +24,7 @@ const Prompt = ({ onClose, resolve }: { onClose: () => void } & Props) => {
       onClose();
       setTimeout(() => resolve(s), 1);
     },
-    [resolve, onClose]
+    [resolve, onClose],
   );
   const contentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -34,8 +34,7 @@ const Prompt = ({ onClose, resolve }: { onClose: () => void } & Props) => {
   }, [loaded, setLoaded]);
   useEffect(() => {
     if (contentRef.current && loaded) {
-      contentRef.current.closest<HTMLDivElement>(".bp3-overlay").style.zIndex =
-        "1000";
+      contentRef.current.closest<HTMLDivElement>(".bp3-overlay").style.zIndex = "1000";
     }
   }, [contentRef, loaded]);
   return (
@@ -82,9 +81,7 @@ const deferTodos = (blockUid: string) => {
   if (!foundButton) {
     //No button found which means no date variable set so need to parse out a DNP date
     //Find the last date in the block
-    var arrDnp = blockText.split(
-      /(\[\[[^\]]*?\s[0-9]+(?:st|nd|rd|th),\s[0-9]{4}\]\])/
-    );
+    var arrDnp = blockText.split(/(\[\[[^\]]*?\s[0-9]+(?:st|nd|rd|th),\s[0-9]{4}\]\])/);
     if (arrDnp.length > 1) {
       var lastDate = arrDnp[arrDnp.length - 2];
     } else {
@@ -105,7 +102,7 @@ const deferTodos = (blockUid: string) => {
   var finalString = "";
   var rmDateParse = new Date(Date.parse(rmDateFormatStr));
   new Promise<string>((resolve) =>
-    createOverlayRender<Props>("defer-todos-prompt", Prompt)({ resolve })
+    createOverlayRender<Props>("defer-todos-prompt", Prompt)({ resolve }),
   ).then((howManyDays) => {
     var howManyDaysInt = parseInt(howManyDays);
 
@@ -118,13 +115,11 @@ const deferTodos = (blockUid: string) => {
           if (curDayOfWeek == 6) {
             curDayOfWeek = 0;
           }
-          howManyDaysInt =
-            1 + Math.floor(Math.random() * Math.floor(6 - curDayOfWeek));
+          howManyDaysInt = 1 + Math.floor(Math.random() * Math.floor(6 - curDayOfWeek));
           break;
         case "nw":
           var curDayOfWeek = rmDateParse.getDay();
-          howManyDaysInt =
-            6 - curDayOfWeek + 1 + Math.floor(Math.random() * Math.floor(7));
+          howManyDaysInt = 6 - curDayOfWeek + 1 + Math.floor(Math.random() * Math.floor(7));
           break;
         case "tm":
           var curDayOfMonth = rmDateParse.getDate();
@@ -135,10 +130,7 @@ const deferTodos = (blockUid: string) => {
             endOfMonthDate = endOfNextMonth;
           }
           howManyDaysInt =
-            1 +
-            Math.floor(
-              Math.random() * Math.floor(endOfMonthDate - curDayOfMonth)
-            );
+            1 + Math.floor(Math.random() * Math.floor(endOfMonthDate - curDayOfMonth));
           break;
         case "nm":
           var curDayOfMonth = rmDateParse.getDate();
@@ -151,20 +143,12 @@ const deferTodos = (blockUid: string) => {
             Math.floor(Math.random() * Math.floor(endOfNextMonth));
           break;
         case "ty":
-          var daysLeftInYear = differenceInDays(
-            endOfYear(rmDateParse),
-            new Date()
-          );
-          howManyDaysInt =
-            1 + Math.floor(Math.random() * Math.floor(daysLeftInYear));
+          var daysLeftInYear = differenceInDays(endOfYear(rmDateParse), new Date());
+          howManyDaysInt = 1 + Math.floor(Math.random() * Math.floor(daysLeftInYear));
           break;
         case "ny":
-          var daysLeftInYear = differenceInDays(
-            endOfYear(rmDateParse),
-            new Date()
-          );
-          howManyDaysInt =
-            1 + daysLeftInYear + Math.floor(Math.random() * Math.floor(365));
+          var daysLeftInYear = differenceInDays(endOfYear(rmDateParse), new Date());
+          howManyDaysInt = 1 + daysLeftInYear + Math.floor(Math.random() * Math.floor(365));
           break;
         default:
           howManyDaysInt = 1;
@@ -175,7 +159,7 @@ const deferTodos = (blockUid: string) => {
     var nextDate = new Date(
       rmDateParse.getFullYear(),
       rmDateParse.getMonth(),
-      rmDateParse.getDate() + howManyDaysInt
+      rmDateParse.getDate() + howManyDaysInt,
     );
     var rmDateFormat = "[[" + dateFnsFormat(nextDate, "MMMM do, yyyy") + "]]";
     rmDateFormatStr = rmDateFormat
@@ -188,7 +172,7 @@ const deferTodos = (blockUid: string) => {
           .split(/(\(Deferrals:.*\))/)[1]
           .replace("(Deferrals:", "")
           .replace(")", "")
-          .trim()
+          .trim(),
       );
       if (Number.isInteger(foundNum)) {
         btnCounter = foundNum;
@@ -220,8 +204,8 @@ const deferTodos = (blockUid: string) => {
     updateBlock({
       uid: blockUid,
       text: `${blockText.replace(
-        /\[\[[a-zA-Z]+ \d{1\,2}[sthndr]{2}\, \d{4}\]\] \(Deferrals:.*$/,
-        ""
+        /\[\[[a-zA-Z]+ \d{1,2}[sthndr]{2}, \d{4}\]\] \(Deferrals:.*$/,
+        "",
       )} ${finalString}`,
     });
   });
