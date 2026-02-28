@@ -1,5 +1,8 @@
 import createHTMLObserver from "roamjs-components/dom/createHTMLObserver";
 import createObserver from "roamjs-components/dom/createObserver";
+import getUids from "roamjs-components/dom/getUids";
+import getTextByBlockUid from "roamjs-components/queries/getTextByBlockUid";
+import updateBlock from "roamjs-components/writes/updateBlock";
 import { OnloadArgs } from "roamjs-components/types";
 
 const CLASSNAMES_TO_CHECK = [
@@ -84,7 +87,42 @@ const initializeTodont = (extensionAPI: OnloadArgs["extensionAPI"]) => {
     unloads.clear();
   };
 
+  const archiveBlock = (blockUid: string, value: string) => {
+    const firstButtonTag = /{{\[\[([A-Z]{4,8})\]\]}}/.exec(value)?.[1];
+    let newText: string;
+    if (firstButtonTag === "TODO") {
+      newText = value.replace("{{[[TODO]]}}", "{{[[ARCHIVED]]}}");
+    } else if (firstButtonTag === "DONE") {
+      newText = value.replace("{{[[DONE]]}}", "{{[[ARCHIVED]]}}");
+    } else if (firstButtonTag === "ARCHIVED") {
+      newText = value.replace(/^\{\{\[\[ARCHIVED\]\]\}}\s*/, "");
+    } else {
+      newText = `{{[[ARCHIVED]]}} ${value}`;
+    }
+    if (newText !== value) {
+      updateBlock({ uid: blockUid, text: newText });
+    }
+  };
+
   const todontCallback = () => {
+    const selectedBlocks = Array.from(
+      document.getElementsByClassName("block-highlight-blue"),
+    );
+    if (selectedBlocks.length > 0) {
+      selectedBlocks
+        .map(
+          (d) => d.getElementsByClassName("roam-block")[0] as HTMLDivElement,
+        )
+        .filter((d) => !!d)
+        .forEach((d) => {
+          const { blockUid } = getUids(d);
+          const value = getTextByBlockUid(blockUid);
+          if (value) {
+            archiveBlock(blockUid, value);
+          }
+        });
+      return;
+    }
     if (document.activeElement?.tagName === "TEXTAREA") {
       const textArea = document.activeElement as HTMLTextAreaElement;
       const firstButtonTag = /{{\[\[([A-Z]{4,8})\]\]}}/.exec(
