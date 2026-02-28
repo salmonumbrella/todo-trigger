@@ -302,6 +302,42 @@ export default runExtension(async ({ extensionAPI }) => {
     return { explode: !!extensionAPI.settings.get("explode") };
   };
 
+  type TodoState = "todo" | "done" | "other";
+  const getTodoState = (value: string): TodoState => {
+    if (value.startsWith("{{[[DONE]]}}")) {
+      return "done";
+    }
+    if (value.startsWith("{{[[TODO]]}}")) {
+      return "todo";
+    }
+    return "other";
+  };
+  const initialEditStateByBlock = new Map<string, TodoState>();
+  const focusinListener = (e: FocusEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName !== "TEXTAREA") {
+      return;
+    }
+    const textArea = target as HTMLTextAreaElement;
+    const { blockUid } = getUids(textArea);
+    const value = getTextByBlockUid(blockUid) || textArea.value;
+    initialEditStateByBlock.set(blockUid, getTodoState(value));
+  };
+  const focusoutListener = (e: FocusEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName !== "TEXTAREA") {
+      return;
+    }
+    const textArea = target as HTMLTextAreaElement;
+    const { blockUid } = getUids(textArea);
+    const initialState = initialEditStateByBlock.get(blockUid) || "other";
+    initialEditStateByBlock.delete(blockUid);
+    const value = getTextByBlockUid(blockUid) || textArea.value || "";
+    if (initialState === "other" && getTodoState(value) === "done") {
+      onDone(blockUid, value);
+    }
+  };
+
   createHTMLObserver({
     tag: "LABEL",
     className: "check-container",
@@ -330,26 +366,31 @@ export default runExtension(async ({ extensionAPI }) => {
     },
   });
 
-  const clickListener = async (e: MouseEvent) => {
+  const clickListener = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (
-      target.parentElement?.getElementsByClassName(
-        "bp3-text-overflow-ellipsis",
-      )[0]?.innerHTML === "TODO"
-    ) {
-      const textarea = target
-        .closest(".roam-block-container")
-        ?.getElementsByTagName?.("textarea")?.[0];
-      if (textarea) {
-        const { blockUid } = getUids(textarea);
-        onTodo(blockUid, textarea.value);
-      }
+    const menuItem = target.closest(".bp3-menu-item");
+    if (!menuItem) {
+      return;
+    }
+    const menuLabel = menuItem
+      .querySelector(".bp3-text-overflow-ellipsis")
+      ?.textContent?.trim();
+    if (menuLabel !== "TODO") {
+      return;
+    }
+    const textarea = target
+      .closest(".roam-block-container")
+      ?.getElementsByTagName?.("textarea")?.[0];
+    if (textarea) {
+      const { blockUid } = getUids(textarea);
+      onTodo(blockUid, textarea.value);
     }
   };
   document.addEventListener("click", clickListener);
 
   const keydownEventListener = async (_e: Event) => {
     const e = _e as KeyboardEvent;
+    const ROAM_STATE_SETTLE_MS = 50;
     if (e.key === "Enter") {
       if (isControl(e)) {
         const target = e.target as HTMLElement;
@@ -374,29 +415,35 @@ export default runExtension(async ({ extensionAPI }) => {
             if (normalized !== blockText) {
               updateBlock({ uid: blockUid, text: normalized });
             }
-          } else if (blockText.startsWith("{{[[DONE]]}}")) {
-            onDone(blockUid, blockText);
-          } else if (blockText.startsWith("{{[[TODO]]}}")) {
-            onTodo(blockUid, blockText);
+          } else {
+            setTimeout(() => {
+              const value = getTextByBlockUid(blockUid);
+              if (value.startsWith("{{[[DONE]]}}")) {
+                onDone(blockUid, value);
+              } else if (value.startsWith("{{[[TODO]]}}")) {
+                onTodo(blockUid, value);
+              }
+            }, ROAM_STATE_SETTLE_MS);
           }
           return;
         }
-        Array.from(document.getElementsByClassName("block-highlight-blue"))
+        const blockUids = Array.from(
+          document.getElementsByClassName("block-highlight-blue"),
+        )
           .map(
             (d) => d.getElementsByClassName("roam-block")[0] as HTMLDivElement,
           )
-          .map((d) => getUids(d).blockUid)
-          .map((blockUid) => ({
-            blockUid,
-            text: getTextByBlockUid(blockUid),
-          }))
-          .forEach(({ blockUid, text }) => {
-            if (text.startsWith("{{[[DONE]]}}")) {
-              onTodo(blockUid, text);
-            } else if (text.startsWith("{{[[TODO]]}}")) {
-              onDone(blockUid, text);
+          .map((d) => getUids(d).blockUid);
+        setTimeout(() => {
+          blockUids.forEach((blockUid) => {
+            const value = getTextByBlockUid(blockUid);
+            if (value.startsWith("{{[[DONE]]}}")) {
+              onDone(blockUid, value);
+            } else if (value.startsWith("{{[[TODO]]}}")) {
+              onTodo(blockUid, value);
             }
           });
+        }, ROAM_STATE_SETTLE_MS);
       } else {
         const target = e.target as HTMLElement;
         if (target.tagName === "TEXTAREA") {
@@ -421,6 +468,8 @@ export default runExtension(async ({ extensionAPI }) => {
   };
 
   document.addEventListener("keydown", keydownEventListener);
+  document.addEventListener("focusin", focusinListener, true);
+  document.addEventListener("focusout", focusoutListener, true);
 
   const isStrikethrough = !!extensionAPI.settings.get("strikethrough");
   const isClassname = !!extensionAPI.settings.get("classname");
@@ -507,5 +556,10 @@ export default runExtension(async ({ extensionAPI }) => {
       { type: "keydown", el: document, listener: keydownEventListener },
     ],
     commands: ["Defer TODO"],
+    unload: () => {
+      document.removeEventListener("focusin", focusinListener, true);
+      document.removeEventListener("focusout", focusoutListener, true);
+      initialEditStateByBlock.clear();
+    },
   };
 });
