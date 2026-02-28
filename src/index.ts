@@ -19,7 +19,16 @@ import initializeTodont, { TODONT_MODES } from "./utils/todont";
 import normalizeTodoArchivedPrefix from "./utils/normalizeTodoArchivedPrefix";
 
 export default runExtension(async ({ extensionAPI }) => {
-  const toggleTodont = initializeTodont();
+  const { toggle: toggleTodont, cleanup: cleanupTodont } =
+    initializeTodont(extensionAPI);
+  const getTodontMode = (): (typeof TODONT_MODES)[number] => {
+    const configuredMode = extensionAPI.settings.get("todont-mode");
+    return TODONT_MODES.includes(
+      configuredMode as (typeof TODONT_MODES)[number],
+    )
+      ? (configuredMode as (typeof TODONT_MODES)[number])
+      : "icon";
+  };
   extensionAPI.settings.panel.create({
     tabTitle: "TODO Trigger",
     settings: [
@@ -43,6 +52,18 @@ export default runExtension(async ({ extensionAPI }) => {
         description:
           "The set of pairs that you would want to be replaced upon switching between todo and done",
         action: { type: "input", placeholder: "#toRead, #Read" },
+      },
+      {
+        id: "todont-mode",
+        name: "TODONT Mode",
+        description:
+          "Whether to incorporate styling when TODOS turn into ARCHIVED buttons.",
+        action: {
+          type: "select",
+          items: TODONT_MODES.slice(0),
+          onChange: (e) =>
+            toggleTodont(e.target.value as (typeof TODONT_MODES)[number]),
+        },
       },
       {
         id: "ignore-tags",
@@ -87,20 +108,23 @@ export default runExtension(async ({ extensionAPI }) => {
           placeholder: "Block reference or page name",
         },
       },
-      {
-        id: "todont-mode",
-        name: "TODONT Mode",
-        description:
-          "Whether to incorporate styling when TODOS turn into ARCHIVED buttons.",
-        action: {
-          type: "select",
-          items: TODONT_MODES.slice(0),
-          onChange: (e) =>
-            toggleTodont(e.target.value as (typeof TODONT_MODES)[number]),
-        },
-      },
     ],
   });
+  const settingsCaretStyle = document.createElement("style");
+  settingsCaretStyle.textContent = `
+.rm-settings .bp3-button .bp3-icon-caret-up {
+  transform: rotate(180deg);
+}
+`;
+  document.head.appendChild(settingsCaretStyle);
+
+  if (
+    !TODONT_MODES.includes(
+      extensionAPI.settings.get("todont-mode") as (typeof TODONT_MODES)[number],
+    )
+  ) {
+    await extensionAPI.settings.set("todont-mode", "icon");
+  }
 
   const CLASSNAMES_TO_CHECK = [
     "rm-block-ref",
@@ -393,6 +417,10 @@ export default runExtension(async ({ extensionAPI }) => {
     const ROAM_STATE_SETTLE_MS = 50;
     if (e.key === "Enter") {
       if (isControl(e)) {
+        // Cmd/Ctrl+Shift+Enter is reserved for the Archive TODO command.
+        if (e.shiftKey) {
+          return;
+        }
         const target = e.target as HTMLElement;
         if (target.tagName === "TEXTAREA") {
           const textArea = target as HTMLTextAreaElement;
@@ -545,11 +573,7 @@ export default runExtension(async ({ extensionAPI }) => {
   }
 
   addDeferTODOsCommand();
-  toggleTodont(
-    (extensionAPI.settings.get(
-      "todont-mode",
-    ) as (typeof TODONT_MODES)[number]) || "off",
-  );
+  toggleTodont(getTodontMode());
 
   return {
     domListeners: [
@@ -557,6 +581,8 @@ export default runExtension(async ({ extensionAPI }) => {
     ],
     commands: ["Defer TODO"],
     unload: () => {
+      cleanupTodont();
+      settingsCaretStyle.remove();
       document.removeEventListener("focusin", focusinListener, true);
       document.removeEventListener("focusout", focusoutListener, true);
       initialEditStateByBlock.clear();
