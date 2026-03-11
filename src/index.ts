@@ -17,6 +17,12 @@ import extractTag from "roamjs-components/util/extractTag";
 import getChildrenLengthByParentUid from "roamjs-components/queries/getChildrenLengthByParentUid";
 import initializeTodont, { TODONT_MODES } from "./utils/todont";
 import normalizeTodoArchivedPrefix from "./utils/normalizeTodoArchivedPrefix";
+import {
+  captureInitialTodoState,
+  markHandledTodoState,
+  shouldHandleManualDoneOnFocusout,
+} from "./utils/todoStateTracking";
+import type { TodoState } from "./utils/todoStateTracking";
 
 export default runExtension(async ({ extensionAPI }) => {
   const toggleTodont = initializeTodont();
@@ -302,16 +308,6 @@ export default runExtension(async ({ extensionAPI }) => {
     return { explode: !!extensionAPI.settings.get("explode") };
   };
 
-  type TodoState = "todo" | "done" | "other";
-  const getTodoState = (value: string): TodoState => {
-    if (value.startsWith("{{[[DONE]]}}")) {
-      return "done";
-    }
-    if (value.startsWith("{{[[TODO]]}}")) {
-      return "todo";
-    }
-    return "other";
-  };
   const initialEditStateByBlock = new Map<string, TodoState>();
   const focusinListener = (e: FocusEvent) => {
     const target = e.target as HTMLElement;
@@ -321,7 +317,7 @@ export default runExtension(async ({ extensionAPI }) => {
     const textArea = target as HTMLTextAreaElement;
     const { blockUid } = getUids(textArea);
     const value = getTextByBlockUid(blockUid) || textArea.value;
-    initialEditStateByBlock.set(blockUid, getTodoState(value));
+    captureInitialTodoState(initialEditStateByBlock, blockUid, value);
   };
   const focusoutListener = (e: FocusEvent) => {
     const target = e.target as HTMLElement;
@@ -330,10 +326,10 @@ export default runExtension(async ({ extensionAPI }) => {
     }
     const textArea = target as HTMLTextAreaElement;
     const { blockUid } = getUids(textArea);
-    const initialState = initialEditStateByBlock.get(blockUid) || "other";
+    const initialState = initialEditStateByBlock.get(blockUid);
     initialEditStateByBlock.delete(blockUid);
     const value = getTextByBlockUid(blockUid) || textArea.value || "";
-    if (initialState === "other" && getTodoState(value) === "done") {
+    if (shouldHandleManualDoneOnFocusout(initialState, value)) {
       onDone(blockUid, value);
     }
   };
@@ -420,6 +416,7 @@ export default runExtension(async ({ extensionAPI }) => {
               const value = getTextByBlockUid(blockUid);
               if (value.startsWith("{{[[DONE]]}}")) {
                 onDone(blockUid, value);
+                markHandledTodoState(initialEditStateByBlock, blockUid, value);
               } else if (value.startsWith("{{[[TODO]]}}")) {
                 onTodo(blockUid, value);
               }
