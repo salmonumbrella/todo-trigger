@@ -375,9 +375,9 @@ export default runExtension(async ({ extensionAPI }) => {
               updateBlock({ uid: blockUid, text: normalized });
             }
           } else if (blockText.startsWith("{{[[DONE]]}}")) {
-            onDone(blockUid, blockText);
-          } else if (blockText.startsWith("{{[[TODO]]}}")) {
             onTodo(blockUid, blockText);
+          } else if (blockText.startsWith("{{[[TODO]]}}")) {
+            onDone(blockUid, blockText);
           }
           return;
         }
