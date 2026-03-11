@@ -578,6 +578,7 @@ export default runExtension(async ({ extensionAPI }) => {
   return {
     domListeners: [
       { type: "keydown", el: document, listener: keydownEventListener },
+      { type: "click", el: document, listener: clickListener },
     ],
     commands: ["Defer TODO"],
     unload: () => {
