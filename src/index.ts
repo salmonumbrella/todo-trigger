@@ -383,7 +383,7 @@ export default runExtension(async ({ extensionAPI }) => {
       ?.getElementsByTagName?.("textarea")?.[0];
     if (textarea) {
       const { blockUid } = getUids(textarea);
-      onTodo(blockUid, textarea.value);
+      onTodo(blockUid, getTextByBlockUid(blockUid) || textarea.value);
     }
   };
   document.addEventListener("click", clickListener);
@@ -554,6 +554,7 @@ export default runExtension(async ({ extensionAPI }) => {
   return {
     domListeners: [
       { type: "keydown", el: document, listener: keydownEventListener },
+      { type: "click", el: document, listener: clickListener },
     ],
     commands: ["Defer TODO"],
     unload: () => {
