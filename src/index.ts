@@ -386,15 +386,14 @@ export default runExtension(async ({ extensionAPI }) => {
 
   const keydownEventListener = async (_e: Event) => {
     const e = _e as KeyboardEvent;
-    const ROAM_STATE_SETTLE_MS = 50;
     if (e.key === "Enter") {
       if (isControl(e)) {
         const target = e.target as HTMLElement;
         if (target.tagName === "TEXTAREA") {
           const textArea = target as HTMLTextAreaElement;
           const { blockUid } = getUids(textArea);
-          // Read from Roam's data layer — the textarea DOM value may lag
-          // behind after a recent API update (e.g. toggling to ARCHIVED).
+          // Check data layer for ARCHIVED state — the textarea DOM value
+          // may lag behind after a recent API update.
           const blockText =
             getTextByBlockUid(blockUid) || textArea.value;
           if (blockText.startsWith("{{[[ARCHIVED]]}}")) {
@@ -411,36 +410,30 @@ export default runExtension(async ({ extensionAPI }) => {
             if (normalized !== blockText) {
               updateBlock({ uid: blockUid, text: normalized });
             }
-          } else {
-            setTimeout(() => {
-              const value = getTextByBlockUid(blockUid);
-              if (value.startsWith("{{[[DONE]]}}")) {
-                onDone(blockUid, value);
-                markHandledTodoState(initialEditStateByBlock, blockUid, value);
-              } else if (value.startsWith("{{[[TODO]]}}")) {
-                onTodo(blockUid, value);
-              }
-            }, ROAM_STATE_SETTLE_MS);
+          } else if (textArea.value.startsWith("{{[[DONE]]}}")) {
+            onDone(blockUid, textArea.value);
+            markHandledTodoState(initialEditStateByBlock, blockUid, textArea.value);
+          } else if (textArea.value.startsWith("{{[[TODO]]}}")) {
+            onTodo(blockUid, textArea.value);
           }
           return;
         }
-        const blockUids = Array.from(
-          document.getElementsByClassName("block-highlight-blue"),
-        )
+        Array.from(document.getElementsByClassName("block-highlight-blue"))
           .map(
             (d) => d.getElementsByClassName("roam-block")[0] as HTMLDivElement,
           )
-          .map((d) => getUids(d).blockUid);
-        setTimeout(() => {
-          blockUids.forEach((blockUid) => {
-            const value = getTextByBlockUid(blockUid);
-            if (value.startsWith("{{[[DONE]]}}")) {
-              onDone(blockUid, value);
-            } else if (value.startsWith("{{[[TODO]]}}")) {
-              onTodo(blockUid, value);
+          .map((d) => getUids(d).blockUid)
+          .map((blockUid) => ({
+            blockUid,
+            text: getTextByBlockUid(blockUid),
+          }))
+          .forEach(({ blockUid, text }) => {
+            if (text.startsWith("{{[[DONE]]}}")) {
+              onTodo(blockUid, text);
+            } else if (text.startsWith("{{[[TODO]]}}")) {
+              onDone(blockUid, text);
             }
           });
-        }, ROAM_STATE_SETTLE_MS);
       } else {
         const target = e.target as HTMLElement;
         if (target.tagName === "TEXTAREA") {
