@@ -362,8 +362,8 @@ export default runExtension(async ({ extensionAPI }) => {
     },
   });
 
-  const clickListener = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
+  const clickListener = (_e: Event) => {
+    const target = (_e as MouseEvent).target as HTMLElement;
     const menuItem = target.closest(".bp3-menu-item");
     if (!menuItem) {
       return;
