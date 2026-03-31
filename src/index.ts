@@ -356,8 +356,8 @@ export default runExtension(async ({ extensionAPI }) => {
         if (target.tagName === "TEXTAREA") {
           const textArea = target as HTMLTextAreaElement;
           const { blockUid } = getUids(textArea);
-          // Read from Roam's data layer — the textarea DOM value may lag
-          // behind after a recent API update (e.g. toggling to ARCHIVED).
+          // Check data layer for ARCHIVED state — the textarea DOM value
+          // may lag behind after a recent API update.
           const blockText =
             getTextByBlockUid(blockUid) || textArea.value;
           if (blockText.startsWith("{{[[ARCHIVED]]}}")) {
@@ -374,10 +374,10 @@ export default runExtension(async ({ extensionAPI }) => {
             if (normalized !== blockText) {
               updateBlock({ uid: blockUid, text: normalized });
             }
-          } else if (blockText.startsWith("{{[[DONE]]}}")) {
-            onTodo(blockUid, blockText);
-          } else if (blockText.startsWith("{{[[TODO]]}}")) {
-            onDone(blockUid, blockText);
+          } else if (textArea.value.startsWith("{{[[DONE]]}}")) {
+            onDone(blockUid, textArea.value);
+          } else if (textArea.value.startsWith("{{[[TODO]]}}")) {
+            onTodo(blockUid, textArea.value);
           }
           return;
         }
